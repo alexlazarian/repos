@@ -33,7 +33,9 @@ repo_link() {
   local name
   name=$(repo_name "$dir")
   local url="${EDITOR_SCHEME}://file${dir}"
-  printf '\033]8;;%s\033\\%s ↗\033]8;;\033\\' "$url" "$name"
+  # OSC 8: \e]8;;URL\a  VISIBLE_TEXT  \e]8;;\a
+  # Using \a (BEL) as terminator - more portable than ST (\e\\)
+  printf '\033]8;;%s\a%s ↗\033]8;;\a' "$url" "$name"
 }
 
 is_git_repo() {
@@ -102,8 +104,8 @@ cmd_status() {
   fi
 
   printf "\n"
-  printf "  \033[1m%-28s %-40s %-10s %s\033[0m\n" "REPO" "BRANCH" "DIRTY" "PUSH"
-  printf "  %-28s %-40s %-10s %s\n" "----------------------------" "----------------------------------------" "----------" "--------------------"
+  printf "  \033[1m%-30s %-40s %-10s %s\033[0m\n" "REPO" "BRANCH" "DIRTY" "PUSH"
+  printf "  %-30s %-40s %-10s %s\n" "------------------------------" "----------------------------------------" "----------" "--------------------"
 
   while IFS= read -r dir; do
     [ -z "$dir" ] && continue
@@ -176,14 +178,16 @@ cmd_status() {
       push_display="\033[90mno upstream\033[0m"
     fi
 
-    local name_col
-    name_col=$(repo_link "$dir")
-    # repo_link contains escape sequences so use %b; pad manually
     local name_plain
     name_plain="$(repo_name "$dir") ↗"
-    local pad=$((28 - ${#name_plain}))
-    if [ "$pad" -lt 0 ]; then pad=0; fi
-    printf "  %b%*s %-40s %-20b %b\n" "$name_col" "$pad" "" "$branch" "$dirty_display" "$push_display"
+    local col_width=30
+    local pad=$((col_width - ${#name_plain}))
+    if [ "$pad" -lt 1 ]; then pad=1; fi
+    # Print link with manual padding (escape sequences have zero visible width)
+    printf '  '
+    repo_link "$dir"
+    printf '%*s' "$pad" ""
+    printf '%-40s %-20b %b\n' "$branch" "$dirty_display" "$push_display"
   done < "$PINS_FILE"
 
   printf "\n"
