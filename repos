@@ -6,6 +6,7 @@ set -euo pipefail
 
 VERSION="1.0.0"
 PINS_FILE="${REPOS_PINS:-$HOME/.config/repos/pins}"
+EDITOR_SCHEME="${REPOS_EDITOR:-cursor}"  # cursor, code, zed, etc.
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
@@ -23,6 +24,16 @@ resolve_path() {
 
 repo_name() {
   basename "$1"
+}
+
+# OSC 8 clickable link: opens repo in editor when clicked
+# Works in iTerm2, Warp, Ghostty, WezTerm, Windows Terminal, etc.
+repo_link() {
+  local dir="$1"
+  local name
+  name=$(repo_name "$dir")
+  local url="${EDITOR_SCHEME}://file${dir}"
+  printf '\033]8;;%s\033\\%s ↗\033]8;;\033\\' "$url" "$name"
 }
 
 is_git_repo() {
@@ -165,7 +176,14 @@ cmd_status() {
       push_display="\033[90mno upstream\033[0m"
     fi
 
-    printf "  %-28s %-40s %-20b %b\n" "$(repo_name "$dir")" "$branch" "$dirty_display" "$push_display"
+    local name_col
+    name_col=$(repo_link "$dir")
+    # repo_link contains escape sequences so use %b; pad manually
+    local name_plain
+    name_plain="$(repo_name "$dir") ↗"
+    local pad=$((28 - ${#name_plain}))
+    if [ "$pad" -lt 0 ]; then pad=0; fi
+    printf "  %b%*s %-40s %-20b %b\n" "$name_col" "$pad" "" "$branch" "$dirty_display" "$push_display"
   done < "$PINS_FILE"
 
   printf "\n"
@@ -237,6 +255,12 @@ Usage:
 Config:
   Pins are stored at ~/.config/repos/pins by default.
   Override with REPOS_PINS environment variable.
+
+  Repo names are clickable and open in your editor.
+  Default: cursor. Override with REPOS_EDITOR:
+    export REPOS_EDITOR=code      # VS Code
+    export REPOS_EDITOR=cursor    # Cursor
+    export REPOS_EDITOR=zed       # Zed
 
 Dependencies:
   - git (required)
