@@ -179,12 +179,27 @@ cmd_list() {
   cat "$PINS_FILE"
 }
 
+cmd_live() {
+  local interval="${1:-3}"
+  trap 'tput cnorm; printf "\n"; exit 0' INT TERM
+
+  tput civis  # hide cursor
+  while true; do
+    tput home  # move to top-left
+    tput ed    # clear from cursor to end
+    printf "  \033[90m● live  refreshing every %ss  (Ctrl+C to exit)\033[0m\n" "$interval"
+    cmd_status
+    sleep "$interval"
+  done
+}
+
 # ── Main ────────────────────────────────────────────────────────────
 
 case "${1:-status}" in
   pin)       cmd_pin "${2:-}" ;;
   unpin|rm)  cmd_unpin "${2:-}" ;;
   status|s)  cmd_status ;;
+  live|watch) cmd_live "${2:-3}" ;;
   list|ls)   cmd_list ;;
   -v|--version|version)
     echo "repos $VERSION"
@@ -197,6 +212,7 @@ Usage:
   repos                 show status of all pinned repos
   repos pin [path]      pin a repo (defaults to current directory)
   repos unpin [path]    unpin a repo
+  repos live [seconds]  live-updating dashboard (default: 3s)
   repos list            list pinned repo paths
   repos version         show version
   repos help            show this help
